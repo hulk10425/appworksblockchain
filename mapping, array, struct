@@ -1,0 +1,18 @@
+pragma solidity ^0.8.0;
+
+contract ez {
+// mapping, array, struct 
+
+    //Array 單一數據儲存時
+    uint[] public arrExample;
+
+    //Map
+    mapping(address => uint) public mapExample;
+
+    //Struct
+    struct people {
+        uint8 age;
+        string name;
+    }
+
+}
