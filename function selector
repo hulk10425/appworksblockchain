@@ -1,0 +1,17 @@
+pragma solidity ^0.8.0;
+
+//透過輸入 "transfer(address,uint256)" 可以得到  0xa9059cbb
+//透過跟下面Receiver Log 比較後，可以知道 transfer的 function selector 就是0xa9059cbb
+//這邊要特別注意的是 參數uint 要寫成 uint256要不然 function selector 會有誤
+contract FunctionSelector {
+    function getSelector(string calldata _func) external pure returns (bytes4) {
+        return bytes4(keccak256(bytes(_func)));
+    }
+}
+
+contract Receiver {
+    event Log(bytes data);
+    function transfer(address _to, uint _amount) external {
+        emit Log(msg.data);
+    } 
+}
