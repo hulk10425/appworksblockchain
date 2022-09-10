@@ -1,0 +1,32 @@
+pragma solidity ^0.8.0;
+
+contract HashFunction {
+    
+    function hash(
+        string memory _text,
+        uint _num,
+        address _addr
+    ) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(_text, _num, _addr));
+    }
+    //encode 和 encodepacked 最大差別在於，abi.encode會將data填充為32字節，因此中間會有很多0
+    function hashEncode(string memory _text, string memory _anotherText)
+        public
+        pure
+        returns (bytes32)
+    {
+   
+        return keccak256(abi.encode(_text, _anotherText));
+    }
+
+    //由於encodePacked 會自動將兩傳入data中的0拿掉，因此AAA,BBB 跟 AA,ABBB的結果會相同
+    function hashEncodePacked(string memory _text, string memory _anotherText)
+        public
+        pure
+        returns (bytes32)
+    {
+        // encodePacked(AAA, BBB) -> AAABBB
+        // encodePacked(AA, ABBB) -> AAABBB
+        return keccak256(abi.encodePacked(_text, _anotherText));
+    }
+}
