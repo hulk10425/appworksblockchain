@@ -1,0 +1,16 @@
+pragma solidity ^0.8.0;
+
+contract ArrayTwo {
+    uint[] public arr;
+
+    constructor() {
+        arr = [1,2,3,4,5];
+    }
+
+    function removeArrElement(uint _i) public {
+        require(arr.length > _i,"out of array range");
+        arr[_i] = arr[arr.length - 1];
+        arr.pop();
+    }
+
+}
