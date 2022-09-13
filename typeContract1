@@ -1,0 +1,29 @@
+pragma solidity ^0.8.0;
+
+contract typeContract {
+
+    function test1() public view returns (uint) {
+        return 1;
+    }
+
+    function test2() public pure returns (uint) {
+        return 1;
+    }
+}
+
+contract interactCaller {
+
+    constructor () payable {}
+
+    function callTest1(typeContract _contract) public view returns (uint){
+        return _contract.test1();
+    }
+
+    function callTest2(typeContract _contract) public view returns (uint){
+        return _contract.test2();
+    }
+
+    function getBalance() public view returns (uint) {
+        return address(this).balance;
+    }
+}
