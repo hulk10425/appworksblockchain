@@ -1,0 +1,33 @@
+pragma solidity ^0.4.0;
+
+contract publicAndExternalContract {
+
+    function test1(uint[20] arr) public pure returns (uint) {
+        return arr[10] * 2;
+    }
+
+    function test2(uint[20] arr) external pure returns (uint) {
+        return arr[10] * 2;
+    }
+}
+
+
+contract interactCaller {
+    uint[20] a;
+
+    constructor () payable {
+        a[10] = 2;
+    }
+
+    function callTest1(publicAndExternalContract _contract) public view returns (uint){
+        return _contract.test1(a);
+    }
+
+    function callTest2(publicAndExternalContract _contract) public view returns (uint){
+        return _contract.test2(a);
+    }
+
+    function getBalance() public view returns (uint) {
+        return address(this).balance;
+    }
+}
