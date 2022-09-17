@@ -1,0 +1,21 @@
+pragma solidity ^0.8.0;
+
+contract ownable {
+
+    address public owner;
+    constructor() {
+        owner = msg.sender;
+    }
+
+    modifier onlyOwner {
+        require(owner == msg.sender, "not owner");
+        _;
+    }
+
+    function setOwner(address _newOwner) onlyOwner external {
+        // address(0) 就是 0x0000000000000000000000000000000000000000
+        require(_newOwner != address(0),"not admin");
+        owner = _newOwner;
+    }
+
+}
