@@ -1,0 +1,20 @@
+pragma solidity ^0.8.10;
+
+contract PiggyBank {
+
+    event Deposit(uint amount);
+    event Withdraw(uint amount);
+
+    address public owner = msg.sender;
+
+    receive() external payable {
+        emit Deposit(msg.value);
+    }
+    //只能拿回存款一次！拿回就像打破豬撲滿一樣，無法再使用，所以使用selfdestruct
+    function withdraw() external {
+        require(msg.sender == owner,"It's not owner");
+        emit Withdraw(address(this).balance);
+        selfdestruct(payable(msg.sender));
+    }
+
+}
