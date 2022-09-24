@@ -1,0 +1,197 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.13;
+
+contract MultiSigWallet {
+    // 新增存錢事件
+    event Deposit(address indexed sender, uint amount, uint balance);
+    // 新增傳送交易事件
+    event SubmitTransaction(
+        address indexed owner,
+        uint indexed txIndex,
+        address indexed to,
+        uint value,
+        bytes data
+    );
+
+    // 新增「認可」交易事件
+    event ConfirmTransaction(address indexed owner, uint indexed txIndex);
+    // 新增撤銷事件
+    event RevokeConfirmation(address indexed owner, uint indexed txIndex);
+    // 新增「執行」交易事件
+    event ExecuteTransaction(address indexed owner, uint indexed txIndex);
+
+    // 新增有權限的人們
+    address[] public owners;
+    // 判斷該 address 是否屬於admin
+    mapping(address => bool) public isOwner;
+    // 需要多少個確認才能真正執行
+    uint public numConfirmationsRequired;
+    // 送出 confirmation 的物件
+    struct Transaction {
+        address to;
+        uint value;
+        bytes data;
+        bool executed;
+        uint numConfirmations;
+    }
+
+    // 記錄交易 目前的各權限者確認情況
+    mapping(uint => mapping(address => bool)) public isConfirmed;
+
+    //儲存所有交易資料
+    Transaction[] public transactions;
+
+    // 加入只有admin權限才能做事的modifier
+    modifier onlyOwner() {
+        require(isOwner[msg.sender], "not owner");
+        _;
+    }
+    // 加入確認交易是否存在的modifier
+    modifier txExists(uint _txIndex) {
+        require(_txIndex < transactions.length, "tx does not exist");
+        _;
+    }
+    //加入確認交易是否已經被執行的modifier，因為再接下來的確認以及執行中，如果已經被執行過了，就不用重複做了
+    modifier notExecuted(uint _txIndex) {
+        require(!transactions[_txIndex].executed, "tx already executed");
+        _;
+    }
+    //加入確認交易是否還未被確認的modifier，因為再接下來的確認中，如果已經被確認了，就不用重複做了
+    modifier notConfirmed(uint _txIndex) {
+        require(!isConfirmed[_txIndex][msg.sender], "tx already confirmed");
+        _;
+    }
+
+    //建構子 申明哪些人有 admin權限 以及 真正需要執行前需要多少confirmation
+    constructor(address[] memory _owners, uint _numConfirmationsRequired) {
+        require(_owners.length > 0, "owners required");
+
+        // 需要超過一個confirmation，要不然就不是多簽錢包了，而且有admin權限的人要多過 所需confirmation 數量，要不然永遠無法執行qq
+        require(
+            _numConfirmationsRequired > 0 &&
+                _numConfirmationsRequired <= _owners.length,
+            "invalid number of required confirmations"
+        );
+    
+        // 把這些人加入到 isOwner中
+        for (uint i = 0; i < _owners.length; i++) {
+            address owner = _owners[i];
+
+            require(owner != address(0), "invalid owner");
+            require(!isOwner[owner], "owner not unique");
+
+            isOwner[owner] = true;
+            owners.push(owner);
+        }
+
+        numConfirmationsRequired = _numConfirmationsRequired;
+    }
+    //可收款，並觸發Deposit事件
+    receive() external payable {
+        emit Deposit(msg.sender, msg.value, address(this).balance);
+    }
+    //送出交易，預設 numConfirmation 是 0，因為還沒有任何人確認
+    function submitTransaction(
+        address _to,
+        uint _value,
+        bytes memory _data
+    ) public onlyOwner {
+        uint txIndex = transactions.length;
+
+        transactions.push(
+            Transaction({
+                to: _to,
+                value: _value,
+                data: _data,
+                executed: false,
+                numConfirmations: 0
+            })
+        );
+
+        emit SubmitTransaction(msg.sender, txIndex, _to, _value, _data);
+    }
+    //確認 某筆交易可執行
+    function confirmTransaction(uint _txIndex)
+        public
+        onlyOwner
+        txExists(_txIndex)
+        notExecuted(_txIndex)
+        notConfirmed(_txIndex)
+    {
+        Transaction storage transaction = transactions[_txIndex];
+        transaction.numConfirmations += 1;
+        isConfirmed[_txIndex][msg.sender] = true;
+
+        emit ConfirmTransaction(msg.sender, _txIndex);
+    }
+    //執行某筆交易，但是若確認數未達標，則revert
+    function executeTransaction(uint _txIndex)
+        public
+        onlyOwner
+        txExists(_txIndex)
+        notExecuted(_txIndex)
+    {
+        Transaction storage transaction = transactions[_txIndex];
+
+        require(
+            transaction.numConfirmations >= numConfirmationsRequired,
+            "cannot execute tx"
+        );
+
+        transaction.executed = true;
+
+        (bool success, ) = transaction.to.call{value: transaction.value}(
+            transaction.data
+        );
+        require(success, "tx failed");
+
+        emit ExecuteTransaction(msg.sender, _txIndex);
+    }
+    //撤銷 對某筆交易的確認
+    
+    function revokeConfirmation(uint _txIndex)
+        public
+        onlyOwner
+        txExists(_txIndex)
+        notExecuted(_txIndex)
+    {
+        Transaction storage transaction = transactions[_txIndex];
+        //先確認該筆交易是否先前有確認過了，沒有就不用浪費資源做接下來的事情
+        require(isConfirmed[_txIndex][msg.sender], "tx not confirmed");
+        
+        transaction.numConfirmations -= 1;
+        isConfirmed[_txIndex][msg.sender] = false;
+
+        emit RevokeConfirmation(msg.sender, _txIndex);
+    }
+    //獲取總共有哪些地址有權限
+    function getOwners() public view returns (address[] memory) {
+        return owners;
+    }
+    //獲取總共目前有多少tx 
+    function getTransactionCount() public view returns (uint) {
+        return transactions.length;
+    }
+    //獲取某tx的所有訊息
+    function getTransaction(uint _txIndex)
+        public
+        view
+        returns (
+            address to,
+            uint value,
+            bytes memory data,
+            bool executed,
+            uint numConfirmations
+        )
+    {
+        Transaction storage transaction = transactions[_txIndex];
+
+        return (
+            transaction.to,
+            transaction.value,
+            transaction.data,
+            transaction.executed,
+            transaction.numConfirmations
+        );
+    }
+}
