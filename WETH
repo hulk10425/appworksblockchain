@@ -1,0 +1,42 @@
+pragma solidity ^0.8.0;
+//引入erc20 父合約以便後續繼承
+
+import "@rari-capital/solmate/src/tokens/ERC20.sol";
+
+
+contract WETH is ERC20 {
+    event Deposit(address indexed account, uint amount);
+    event Withdraw(address indexed account, uint amount);
+
+
+    constructor() ERC20 ("Wrapped Ether","WETH",18) {}
+
+
+    fallback() external payable {
+        deposit();
+    }
+
+    //將eth 傳送到 wrapped smart contract
+    //同步生成 等量的 wrapped eth 
+    //並更新 total supply 
+    //最後通知Deposit事件，儲存log
+    function deposit() public payable {
+        _mint(msg.sender,msg.value);
+        emit Deposit(msg.sender,msg.value);
+    }
+
+
+    //同步減少 等量的 wrapped eth 
+    //並更新 total supply 
+    //將 eth 送回用戶帳戶
+    //最後通知Withdraw事件，儲存log
+
+    function withdraw(uint _amount) external {
+
+        _burn(msg.sender,_amount);
+        payable(msg.sender).transfer(_amount);
+        emit Withdraw(msg.sender,_amount);
+
+    }
+
+}
