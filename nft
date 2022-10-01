@@ -1,0 +1,75 @@
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract NFT is ERC721Enumerable, Ownable {
+  using Strings for uint256;
+
+  //每個nft 賣多少錢
+  uint256 public cost = 0.05 ether;
+  //nft最大供應量
+  uint256 public maxSupply = 10000;
+  //每人最多能mint幾個
+  uint256 public maxMintAmount = 10;
+  //現在是否可以mint
+  bool public paused = false;
+  //是否已經揭露盲盒image
+  bool public revealed = false;
+
+
+  constructor(
+    string memory _name,
+    string memory _symbol
+
+  ) ERC721(_name, _symbol) {
+
+  }
+
+
+  // mint
+  function mint(uint256 _mintAmount) public payable {
+    //目前已經被mint出的個數
+    uint256 supply = totalSupply();
+    //現在是否能夠mint
+    require(!paused);
+    //mint數量大於0
+    require(_mintAmount > 0);
+    //有否超過個人mint的最大值
+    require(_mintAmount <= maxMintAmount);
+    //是否已經超過mint上限
+    require(supply + _mintAmount <= maxSupply);
+
+    if (msg.sender != owner()) {
+      require(msg.value >= cost * _mintAmount);
+    }
+
+    for (uint256 i = 1; i <= _mintAmount; i++) {
+      _safeMint(msg.sender, supply + i);
+    }
+  }
+
+  
+  function reveal() public onlyOwner {
+      revealed = true;
+  }
+  
+  function setCost(uint256 _newCost) public onlyOwner {
+    cost = _newCost;
+  }
+
+  function setmaxMintAmount(uint256 _newmaxMintAmount) public onlyOwner {
+    maxMintAmount = _newmaxMintAmount;
+  }
+
+  function pause(bool _state) public onlyOwner {
+    paused = _state;
+  }
+ 
+  function withdraw() public payable onlyOwner {
+    (bool os, ) = payable(owner()).call{value: address(this).balance}("");
+    require(os);
+  }
+}
